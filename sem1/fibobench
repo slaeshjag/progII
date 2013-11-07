@@ -1,0 +1,16 @@
+n:    8  fib(n) calculated in:       10 us
+n:   10  fib(n) calculated in:       10 us
+n:   12  fib(n) calculated in:       11 us
+n:   14  fib(n) calculated in:       12 us
+n:   16  fib(n) calculated in:       14 us
+n:   18  fib(n) calculated in:       15 us
+n:   20  fib(n) calculated in:       16 us
+n:   22  fib(n) calculated in:       17 us
+n:   24  fib(n) calculated in:       19 us
+n:   26  fib(n) calculated in:       20 us
+n:   28  fib(n) calculated in:       22 us
+n:   30  fib(n) calculated in:       22 us
+n:   32  fib(n) calculated in:       24 us
+n:   34  fib(n) calculated in:       25 us
+n:   36  fib(n) calculated in:       27 us
+n:   38  fib(n) calculated in:       28 us
