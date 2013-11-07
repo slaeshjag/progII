@@ -1,0 +1,84 @@
+%% En enkel mall för att skapa en labb-raport.
+\documentclass[a4paper, 11pt]{article}
+\usepackage[utf8]{inputenc} 
+\usepackage[swedish]{babel}
+\usepackage{textcomp}
+
+\title{Seminarie 1}
+\author{Steven Arnow}
+\date{\today} 
+
+\begin{document}
+
+\maketitle 
+
+\section{Uppgiften}
+
+\subsection{Fibonacci}
+Uppgiften går ut på att konstruera ett funktionsanrop som beräknar n:te fibonaccitalet. Eftersom en funktion som strikt var rekursiv till sig själv med formatet \texttt{fib(n)/1} skulle ta hundra år på sig att beräkna ett tvåsiffrigt fibonaccital, valde jag att enbart använda den funktionen för att bootstrappa en annan rekursiv funktion.
+
+Vad går uppgiften ut på, beskriv kortfattat problemet och hur det skulle lösas.
+
+\section{Ansatts}
+
+\subsection{Fibonacci}
+
+För små tal är tiden det tar ganska linjär och förutsägbar. Som nedan kan ses i koden nedan så har jag inget tålamod för rakt av efterblivna implementeringar som tar år och dagar på att göra samma sak hela tiden.
+
+\begin{verbatim}
+fib(M, N, C, T) -> case C < T of
+        true -> fib(N, M + N, C + 1, T);
+        false -> N
+end.
+
+fib(N) -> fib(0, 1, 0, N - 1).
+\end{verbatim}
+
+Baserat på koden och testkörningar med små fibonaccital förväntar jag mig att beräkningstiden bör öka någorlunda linjärt. Hur det blir med overhead när resultatvärdet växer kan jag dock inte sia om.
+
+
+\section{Utvärdering}
+
+\subsection{Fibonacci}
+
+Uppmätt beräkningstid i tabell \ref{tab:fibobench} visar att upp till någonstans mellan fibonaccital 10000 och 100000 börjar overhead öka drastiskt.
+
+\begin{table}
+\centering
+\begin{tabular}{|l|r|r|}
+\hline
+Fibonacci \textnumero & Beräkningstid (µS) & µS/\textnumero\\
+\hline
+10 & 13 & 1.3\\
+\hline
+100 & 137 & 1.37\\
+\hline
+1000 & 1668 & 1.67\\
+\hline
+10000 & 24372 & 2.44\\
+\hline
+100000 & 2280810 & 22.8\\
+\hline
+500000 & 49261793 & 98.5\\
+\hline
+\end{tabular}
+\caption{Beräkningstid vs. storlek på fibonaccitalet}
+\label{tab:fibobench}
+\end{table}
+
+Jag kom fram till tidsapproximationen $t = n \times (1.3 + \frac{n}{5050})$ för min lösning på min laptop. När jag skriver den här delen av rapporten är det en vecka kvar till seminariet, vilket enligt approximationen ger att jag borde kunna räkna ut ett fibonaccital någonstans i krokarna runt 54000000.
+
+Uppgifterna i denna kurs kanske inte kräver en utvärdering men man kan
+här visa resultat från testkörningar mm. Om man vill lägga in resultat
+från testkörningar kan man sammanfatta dessa i en tabell. Ett exempel
+kan ses i tabell \ref{tab:results}. 
+
+
+
+\section{Sammanfattning}
+
+
+Vad gick bra och vad gick mindre bra? Vad var de största problemen och
+hur löstes de? Skriv en kort sammanfattning.
+
+\end{document}
