@@ -14,10 +14,19 @@
 
 \section{Uppgiften}
 
+\subsection{Reverse}
+
+Uppgiften går ut på att jämföra prestandan hos två implementationer av en funktion som vänder på en lista, så att sista elementet hamnar först etc..
+
 \subsection{Fibonacci}
 Uppgiften går ut på att konstruera ett funktionsanrop som beräknar n:te fibonaccitalet. Eftersom en funktion som strikt var rekursiv till sig själv med formatet \texttt{fib(n)/1} skulle ta hundra år på sig att beräkna ett tvåsiffrigt fibonaccital, valde jag att enbart använda den funktionen för att bootstrappa en annan rekursiv funktion.
 
 Vad går uppgiften ut på, beskriv kortfattat problemet och hur det skulle lösas.
+
+
+
+
+
 
 \section{Ansatts}
 
@@ -37,7 +46,41 @@ fib(N) -> fib(0, 1, 0, N - 1).
 Baserat på koden och testkörningar med små fibonaccital förväntar jag mig att beräkningstiden bör öka någorlunda linjärt. Hur det blir med overhead när resultatvärdet växer kan jag dock inte sia om.
 
 
+
+
+
+
 \section{Utvärdering}
+
+\subsection{reverse}
+
+Uppmätt körtid i tabell \ref{tab:reverse} visar att, som hintat i uppgiften, att \emph{reverse} är rejalt mycket snabbare än \emph{nreverse}. Komplexiteten hos \emph{nreverse} är nästan kvadratisk ($O(n^2)$,) jämfört med \emph{reverse} som närmast ser linjär ut ($O(n)$), där \emph{n} är längden på listan som ska vändas. Detta beror främst på att eftersom \emph{reverse} reäknar ut allt innan nästa rekursion, vilket betyder att den kan optimeras med svansrekursion. Den bygger dessutom bara på en lista, i stället för att skapa en ny varje rekursion. Att skapa en ny lista är långsamt, speciellt om den skall appendas varje rekursion.
+
+\begin{table}
+\centering
+\begin{tabular}{|l|r|r|}
+\hline
+Antal element & Tid för reverse (µs) & Tid för nreverse (µS)\\
+\hline
+16 & 178 & 26 \\
+\hline
+32 & 729 & 48 \\
+\hline
+64 & 1850 & 72 \\
+\hline
+128 & 7962 & 132 \\
+\hline
+256 & 26360 & 256 \\
+\hline
+512 & 105701 & 417 \\
+\hline
+\end{tabular}
+\caption{Beräkningstid vs. implementation vs. listlängd}
+\label{tab:reverse}
+\end{table}
+
+
+
 
 \subsection{Fibonacci}
 
