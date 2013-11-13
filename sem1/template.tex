@@ -18,6 +18,12 @@
 
 Uppgiften går ut på att jämföra prestandan hos två implementationer av en funktion som vänder på en lista, så att sista elementet hamnar först etc..
 
+
+\subsection{Binärkodning}
+
+Uppgiften går ut på att konstruera två olika implementationer av en funktion som tar ett heltal som indata, och returnerar en bitrepresentation av talet i form av en lista, med en etta eller nolla per element.
+
+
 \subsection{Fibonacci}
 Uppgiften går ut på att konstruera ett funktionsanrop som beräknar n:te fibonaccitalet. Eftersom en funktion som strikt var rekursiv till sig själv med formatet \texttt{fib(n)/1} skulle ta hundra år på sig att beräkna ett tvåsiffrigt fibonaccital, valde jag att enbart använda den funktionen för att bootstrappa en annan rekursiv funktion.
 
@@ -29,6 +35,37 @@ Vad går uppgiften ut på, beskriv kortfattat problemet och hur det skulle lösa
 
 
 \section{Ansatts}
+
+\subsection{Binärkodning}
+
+Ena implementationen jag gjorde var att rekursivt iterera över startnumret, där en division görs med talet motsvarande bitpositionen som skall plockas ut, och resten jämförs med positionen under biten som testades. Är resten större eller lika med värdet för positionen under så är det en etta på en positionen, annars en nolla. Sedan delas positionsväred med två och rekurserar vidare tills testade positionsvärdet är ett. Kod nedan.
+
+\begin{verbatim}
+get_bit(Num, Pos) -> case Pos =< 1 of
+        true -> [];
+        false -> (case (Num rem Pos) >= (Pos div 2) of
+                true -> [1|get_bit(Num, Pos div 2)];
+                false -> [0|get_bit(Num, Pos div 2)]
+        end)
+end.
+
+find_pos(Num, Pos -> case Pos =< Num of
+        true -> find_pos(Num, Pos * 2);
+        false -> get_bit(Num, Pos)
+end.
+
+get_bit(Num) -> find_pos(Num, 2).
+\end{verbatim}
+
+Mycket kod. Mycket mer än min andra implementation.
+
+\begin{verbatim}
+list_unchr(Lst) -> case Lst == [] of
+        true -> [];
+        false -> [hd(Lst) - 48 | list_unchr(tl(Lst))]
+end.
+get_bit2(Num) -> list_unchr(integer_to_list(Num, 2)).
+\end{verbatim}
 
 \subsection{Fibonacci}
 
@@ -79,6 +116,11 @@ Antal element & Tid för reverse (µs) & Tid för nreverse (µS)\\
 \label{tab:reverse}
 \end{table}
 
+
+
+\subsection{Binärkodning}
+
+Av de två implementationer är den senare av de två den bästa. Ingen av dom är bra, men den senare är bättre än den första... Dels är den senare mindre kod, och dels är den senare antagligen snabbare, eftersom grovjobbet görs av en funktion i erlangs standardbibliotek, som förhoppningsvis är skriven i ett snabbare språk än erlang..
 
 
 
