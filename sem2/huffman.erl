@@ -2,6 +2,7 @@
 -export([huffman_prob/2]).
 -export([list_seek/2]).
 -export([table/1]).
+-export([encode/2]).
 
 %% list_seek - Skips elements until a new one is found
 list_seek([], _) -> [];
@@ -43,4 +44,17 @@ make_leaf_list([], N) -> N.
 
 get_tree(SortedData) -> L = lists:sort(make_leaf_list(make_list(SortedData, 0), [])), make_tree(lists:keysort(3, L), [], length(L)).
 
-table(Data) -> get_tree(lists:sort(Data)).
+get_table([{branch, padding, _, L, R}|_], History) -> get_table([L], History ++ [0]) ++ get_table([R], History ++ [1]);
+get_table([{leaf, Byte, Freq}], History) -> [{table, Byte, Freq, History}].
+
+
+table(Data) -> N = get_tree(lists:sort(Data)), T = get_table(N, []), {endec, N, T}.
+
+
+%% Encode! %%
+
+find_encoding(Element, [{table, Element, _, Encoding}|_]) -> Encoding;
+find_encoding(Element, [_|T]) -> find_encoding(Element, T).
+
+encode([], _) -> [];
+encode([H|T], {endec, _, Ta}) -> find_encoding(H, Ta) ++ encode(T, {endec, 0, Ta}).
