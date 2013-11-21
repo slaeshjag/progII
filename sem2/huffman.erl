@@ -5,7 +5,9 @@
 -export([encode/2]).
 -export([decode/2]).
 -export([test/0]).
+%-include("testtext.test").
 
+%%sample() -> "123456789aob".
 sample() -> "the quick brown fox jumps over the lazy dog this is a sample text that we will use when we build up a table we will only handle lower case letters and no punctuation symbols the frequency will of course not represent english but it is probably not that far off".
 %sample() -> "En stor rund hund med mycket jobbiga tecken, som kan drastiskt minska kompressionsgraden av text. Räksmörgås. Vad drar du för slutsats av detta? Allt jag vet är att huffmankodningen i sig verkar fungera rätt okej".
 
@@ -36,19 +38,25 @@ end.
 make_list(_, 256) -> [];
 make_list(Data, Byte) -> [{byte, Byte, huffman_prob(Data, Byte)}|make_list(Data, Byte + 1)].
 
-make_tree(TreeStublets, _, 1) -> TreeStublets;
-make_tree([], TreeStublets, 0) -> make_tree(TreeStublets, [], length(TreeStublets));
-make_tree([G,H|Tail], TreeStublets, _) -> case length(Tail) == 0 of 
-	false -> make_tree(Tail, make_tree([G,H], TreeStublets, length([G,H|Tail])), length(Tail));
-	true -> make_tree(Tail, lists:keysort(3, [{branch, padding, element(3, G) + element(3, H), G, H} | TreeStublets]), length(Tail))
+make_element([G,H], TreeStublets) -> [{branch, padding, element(3, G) + element(3, H), G, H} | TreeStublets].
+element_size([G,H|_]) -> element(3, G) + element(3, H);
+element_size([G]) -> element(3, G).
+
+
+make_tree(TreeStublets, [], 1, _) -> TreeStublets;
+make_tree([], TreeStublets, 0, _) -> make_tree(lists:keysort(3, TreeStublets), [], length(TreeStublets), element_size(TreeStublets));
+make_tree([G], TreeStublets, 1, _) -> make_tree([], [G|TreeStublets], 0, 0);
+make_tree([G,H|Tail], TreeStublets, _, M) -> N = element(3, G) + element(3, H), case N > M of
+	true -> make_tree([], [G,H|TreeStublets]++Tail, 0, 0);
+	false -> make_tree(Tail, make_element([G,H], TreeStublets), length(Tail), N)
 end.
 
-make_leaf_list({byte, Byte, Freq}) -> {leaf, Byte, Freq}.
-make_leaf_list([G|Tail], List) -> make_leaf_list(Tail, [make_leaf_list(G)|List]);
+make_leaf_list({byte, Byte, Freq}) -> [{leaf, Byte, Freq}].
+make_leaf_list([G|Tail], List) -> make_leaf_list(Tail, List++make_leaf_list(G));
 make_leaf_list([], N) -> N.
 
 
-get_tree(SortedData) -> L = lists:sort(make_leaf_list(make_list(SortedData, 0), [])), make_tree(lists:keysort(3, L), [], length(L)).
+get_tree(SortedData) -> L = lists:sort(make_leaf_list(make_list(SortedData, 0), [])), make_tree(lists:keysort(3, L), [], length(L), 0).
 
 get_table([{branch, padding, _, L, R}|_], History) -> get_table([L], History ++ [0]) ++ get_table([R], History ++ [1]);
 get_table([{leaf, Byte, Freq}], History) -> [{table, Byte, Freq, History}].
