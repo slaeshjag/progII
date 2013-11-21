@@ -6,9 +6,13 @@
 -export([decode/2]).
 -export([test/0]).
 %-include("testtext.test").
+%-include("testtext2.test").
+%-include("testtext3.test").
+%-include("testtext4.test").
+-include("lipsum.hrl").
 
 %%sample() -> "123456789aob".
-sample() -> "the quick brown fox jumps over the lazy dog this is a sample text that we will use when we build up a table we will only handle lower case letters and no punctuation symbols the frequency will of course not represent english but it is probably not that far off".
+%sample() -> "the quick brown fox jumps over the lazy dog this is a sample text that we will use when we build up a table we will only handle lower case letters and no punctuation symbols the frequency will of course not represent english but it is probably not that far off".
 %sample() -> "En stor rund hund med mycket jobbiga tecken, som kan drastiskt minska kompressionsgraden av text. Räksmörgås. Vad drar du för slutsats av detta? Allt jag vet är att huffmankodningen i sig verkar fungera rätt okej".
 
 
@@ -85,9 +89,16 @@ decode(T, {endec, [Tr], _}) -> find_decoding(T, Tr, Tr).
 
 %% Test %%
 
-test() -> Sample = sample(),
+test(Sample) ->
+	T1 = now(),
 	Table = table(Sample),
+	T2 = now(),
 	Seq = encode(Sample, Table),
+	T3 = now(),
 	Text = decode(Seq, Table),
+	T4 = now(),
 	io:format("Before: ~w bits, after: ~w bits~n Compression ratio: ~w~n", [length(Text) * 8, length(Seq), length(Seq) / length(Text) / 8]),
-	Text.
+	io:format("Time to create table: ~w, Time to encode data: ~w, Time to decode data: ~w~n", [timer:now_diff(T2,T1), timer:now_diff(T3,T2), timer:now_diff(T4,T3)]).
+
+test() ->
+	test(?LIPSUM).

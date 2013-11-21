@@ -17,7 +17,7 @@ Uppgiften går ut på att implementera en huffmankodare/avkodare, samt kod för 
 
 \section{Ansatts}
 
-Jag implementerade detta genom att först skapa en sorterad lista av indata, och med hjälp av den skapa en lista med förekomsten av alla möjliga bytes. Med frekvenslistan skapade jag sedan en lista med löv till det kommande trädet. Med lövlistan och frekvenslistan itererar jag sedan över löven, och grupperar upp dom i två löv som sitter fast i en gren. Jag skapar en lista av dessa grenar. När alla löv tagits om hand och sitter fast på en gren sorteras utlistan och matas in som indata på samma sätt som löven gjordes, till samma funktion, som då repeterar processen tills ett enda träd återstår.
+Jag implementerade detta genom att först skapa en sorterad lista av indata, och med hjälp av den skapa en lista med förekomsten av alla möjliga bytes. Med frekvenslistan skapade jag sedan en lista med löv till det kommande trädet. Med lövlistan och frekvenslistan itererar jag sedan över löven, och grupperar upp dom i två löv som sitter fast i en gren. Detta körs tills ett löv/gren med högre frekvens än den tidigare hittas. Då läggs kvarvarande löv/grenar in i listan med behandlade trädbitar, som då sorteras efter frekvens och skickas tillbaka i rekursionen som indata. Detta upprepas tills endast en rot finns kvar.
 
 Därefter skapas en lista med koder för varje möjlig byte utifrån trädet, detta görs genom att bygga upp en osorterad lista vartefter trädet rekursivt utforskas. När rekursionen faller tillbaka byggs en lista upp av vägarna som togs för att hitta varje löv. I och med hur listan byggs upp hamnar dessutom de vanligast förekommande elementen först.
 
@@ -25,6 +25,7 @@ Med hjälp av listan kan indata lätt kodas efter huffmanträdet, och med huffma
 
 \section{Utvärdering}
 
+Jag har vid körningarna använt IRC-loggar från en engelskspråklig IRC-kanal. Detta innebär att teckenfrekvensen ligger ganska nära engelska för indatan, men att det fortfarande finns lite småjobbiga tecken här och var från när någon skrivit på ett annat språk. Som det går att se i tabell \ref{tab:results} så är komprimeringsration ganska konstant mellan de olika datamängderna. Vilket är att förvänta sig när språket och kommunikationsmediet är detsamma. Som även går att se i tabell \ref{tab:results2} så är behandlingshastigheten väldigt lik. Någon statistisk säkerhet är inte fastställd, så någon trend kan inte fastställas från variationerna, annat än att den ser \emph{ganska} linjär ut vid de prövade datastorlekarna. Det kan ju vara så att större datamängder innehåller fler udda tecken, och därmed påverkar huffmanträdets struktur.
 
 Uppgifterna i denna kurs kanske inte kräver en utvärdering men man kan
 här visa resultat från testkörningar mm. Om man vill lägga in resultat
@@ -34,29 +35,52 @@ kan ses i tabell \ref{tab:results}.
 
 \begin{table}
 \centering
-\begin{tabular}{|l|r|r|}  
+\begin{tabular}{|l|r|r|r|r|}  
 \hline
-kärnor & tid & uppsnabbning\\
+Skapa tabell (ms) & Koda data (ms) & Avkoda data (ms) & datastorlek (ko) & komprimeringsratio\\
 \hline
-1 & 400ms & 1\\
+51.8 & 82.4 & 3.5 & 16 & 0.644\\
 \hline
-2 & 240ms & 1.7\\
+164 & 330 & 14 & 64 & 0.637\\
 \hline
-4 & 140ms & 2.8\\
+1405 & 1573 & 112 & 512 & 0.639\\
+\hline
+11668 & 20062 & 921 & 4096 & 0.636\\
 \hline
 \end{tabular}
-\caption{Ha alltid en rad som förklarar vad tabellen handlar om.}
+\caption{Tid för olika steg i komprimeringen vs. datastorlek. IRC-loggar som indata}
 \label{tab:results}
 \end{table}
 
-Om ni vill ha med en graf så rekommenderas ni att använda gnuplot. Om
-ni lär er använda det för att göra enkla diagram så kommer ni ha
-mycket nytta av det i framtiden.
+\begin{table}
+\centering
+\begin{tabular}{|l|r|r|r|}  
+\hline
+Trädgenerering (ko/s) & Datakodning (ko/s) & Dataavkodning (ko/s) & Datastorlek (ko)\\
+\hline
+316 & 199 & 4707 & 16\\
+\hline
+400 & 198 & 4759 & 64\\
+\hline
+373 & 333 & 4673 & 512\\
+\hline
+360 & 209 & 4551 & 4096\\
+\hline
+\end{tabular}
+\caption{Behandlingshastighet kodning/avkodning relativt indatastorlek.}
+\label{tab:results2}
+\end{table}
+
+
+Om annan indata skulle ha använts skulle ev. både behandligshastighet och komprimeringsratio ändras. Ett mindre alfabet (fler av färre tecken) skulle ge upphov till bättre komprimering, eftersom kortare koder kan användas för en större del av alla tecken. Och andra sidan skulle homogent brus ge upphov till mycket sämre komprimeringsratio, eftersom inget tecken statistiskt sett förekommer oftare än andra. Är skalan 0..255 på sagda brus så kommer komrimeringsration lägga sig över 1.0 med huffmantabellens storlek inräknad. Excl. huffmantabellen så skulle homogent brus ge exakt 1.0, då det resulterande trädet skulle bli perfekt balanserat.
+
 
 
 \section{Sammanfattning}
 
-Vad gick bra och vad gick mindre bra? Vad var de största problemen och
-hur löstes de? Skriv en kort sammanfattning.
+Att implementera trädet för huffmankodningen var i sig inte så problematiskt. Teorin är rätt enkel. Implementationen var dock värre. Min egna ovana gjorde sig påmind när 16 rader kod som skulle tagit mig 10 minuter att skriva i C tog över 2 timmar i erlang. Detta kombinerat med begränsad debuggingvana i Erlang gjorde felsökning väldigt tidskrävande. Specifika implementationsproblem var träduppbyggnaden. Koden blev inte fullt så läsbar som jag hade önskat, och trädet som byggdes var först i stort sett en länkad lista med en lövgren på varje nog, och därefter ett perfekt balanserat träd som gav noll komprimering. Tankevurporna hittades dock, som kan ses av kompremeringsration, i och med add den ligger på rätt sida av ettan.
+
+Annars var det bara syntax och typfel det sket sig på, främst då jag inte har tillräckligt många fotpedaler eller modifier keys för att kunna byta till Escape Meta Alt Control Shift.
+
 
 \end{document}
