@@ -25,7 +25,7 @@ Med hjälp av listan kan indata lätt kodas efter huffmanträdet, och med huffma
 
 \section{Utvärdering}
 
-Jag har vid körningarna använt IRC-loggar från en engelskspråklig IRC-kanal. Detta innebär att teckenfrekvensen ligger ganska nära engelska för indatan, men att det fortfarande finns lite småjobbiga tecken här och var från när någon skrivit på ett annat språk. Som det går att se i tabell \ref{tab:results} så är komprimeringsration ganska konstant mellan de olika datamängderna. Vilket är att förvänta sig när språket och kommunikationsmediet är detsamma. Som även går att se i tabell \ref{tab:results2} så är behandlingshastigheten väldigt lik. Någon statistisk säkerhet är inte fastställd, så någon trend kan inte fastställas från variationerna, annat än att den ser \emph{ganska} linjär ut vid de prövade datastorlekarna. Det kan ju vara så att större datamängder innehåller fler udda tecken, och därmed påverkar huffmanträdets struktur.
+Jag har vid körningarna använt IRC-loggar (forutom resultaten i tabell \ref{tab:results3}) från en engelskspråklig IRC-kanal. Detta innebär att teckenfrekvensen ligger ganska nära engelska för indatan, men att det fortfarande finns lite småjobbiga tecken här och var från när någon skrivit på ett annat språk. Som det går att se i tabell \ref{tab:results} så är komprimeringsration ganska konstant mellan de olika datamängderna. Vilket är att förvänta sig när språket och kommunikationsmediet är detsamma. Som även går att se i tabell \ref{tab:results2} så är behandlingshastigheten väldigt lik. Någon statistisk säkerhet är inte fastställd, så någon trend kan inte fastställas från variationerna, annat än att den ser \emph{ganska} linjär ut vid de prövade datastorlekarna. Det kan ju vara så att större datamängder innehåller fler udda tecken, och därmed påverkar huffmanträdets struktur.
 
 Uppgifterna i denna kurs kanske inte kräver en utvärdering men man kan
 här visa resultat från testkörningar mm. Om man vill lägga in resultat
@@ -69,6 +69,24 @@ Trädgenerering (ko/s) & Datakodning (ko/s) & Dataavkodning (ko/s) & Datastorlek
 \end{tabular}
 \caption{Behandlingshastighet kodning/avkodning relativt indatastorlek.}
 \label{tab:results2}
+\end{table}
+
+
+\begin{table}
+\centering
+\begin{tabular}{|l|r|r|}  
+\hline
+Steg & Hastighet (ko/s) & Tidsåtgång (s) \\
+\hline
+Skapa tabell & 353 & 9.2 \\
+\hline
+Koda data & 235 & 13.8 \\
+\hline
+Avkoda data & 2988 & 1.2 \\
+\hline
+\end{tabular}
+\caption{Bok, råtext "Les Miserables," $\approx$ 3 Mo. Kompressionsratio på 0.56}
+\label{tab:results3}
 \end{table}
 
 
