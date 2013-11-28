@@ -1,0 +1,74 @@
+%% En enkel mall för att skapa en labb-raport.
+\documentclass[a4paper, 11pt]{article}
+\usepackage[utf8]{inputenc} 
+\usepackage[swedish]{babel}
+
+\title{Seminarie 3}
+\author{Steven Arnow}
+\date{\today} 
+
+\begin{document}
+
+\maketitle 
+
+\section{Uppgiften}
+
+Uppgiften går ut på att simulera omstrukturering av ett tågs vagnpositioner, genom att växla in vagnarna på två sidospår och därefter köra tillbaka dom i motsatt ordning. På så sätt kan man sortera ett tåg till önskad ordning.
+
+\section{Ansatts}
+
+Det första delen, att konstruera hjälpfunktioner för att hantera listorna, så var det mest att översätta angivna anrop till standardbibliotekets motsvarighet. Det är onödigt att uppfinna hjulet på nytt om man redan känner till det. Utöver dessa så implementerade jag en funktion som letar reda på vart två listor börjar vara olika. Dvs returnerar platsen för det första elementet som inte stämmer mellan två angivna listor. Detta för att själva tågsorteringen ska bli lättare att implementera.
+
+Jag avvek lite från den specifika algoritmen som nämndes i uppgiften. I grunden är den samma, jag implementerade på en gång att den bara överväger vagnar som står på fel ställe. Jag åstakommer detta genom att i find så letar ignorerar jag allt fram tills att det inte stämmer, där gör jag en cykel av att omorganisera vagnar, och därefter rekurserar den tillbaka. Är vagnen efter på rätt ställe hoppas den över direkt.
+
+Främsta anledningen till att jag gjorde detta, är för att det var lättare för mig att implementera det så från början. Algoritmbeskrivningen var lite för luddig för att jag skulle kunna implementera den exakt.
+
+Konsekvensen av att jag matchar på en gång i find, är att inga null-operationer sker. Det sker heller inte några meningslösa flyttningar. Därav slipper jag implementera både rules och compress, eftersom algoritmen bakar in detta. För att illustrera detta så tydligt som möjligt är koden för find() inkluerad nedan.
+\pagebreak
+
+\begin{verbatim}
+find(Src, Target) -> case list:diffpos(Src, Target) =< length(Src) of
+        true ->
+                Pos = list:diffpos(Src, Target),
+                Rem = list:drop(Src, Pos - 1),
+                W = lists:nth(Pos, Target),
+                V = list:position(Rem, W),
+                One = length(Rem) - V + 1,
+                Two = V - 1,
+                Move = [{one, One}, {two, Two}, {one, One * -1}, {two, Two * -1}],
+                State = moves:move(Move, {Src, [], []}),
+                Cur = element(1, lists:nth(length(State), State)),
+                Move ++ find(Cur, Target);
+        false -> []
+end.
+\end{verbatim}
+
+
+\section{Utvärdering}
+
+Algoritmen är inte helt optimal dock, eftersom alla operationer är fast definerade så att en operation aldrig lämnar kvar vagnar på stickspåren efter att den är klar. Medans detta förenklar implementationer, så leder detta till att den också är styv, oflexibel. För det mesta ger den acceptabla rörelseförslag, men det finns utrymme för optimering. Stickspår två används av algoritmen enbart för att maka på vagnar som en bakre vagn ska ligga före, och stickspår ett används enbart för vagnarna som skall flyttas fram. Och alla vagnar måste tillbaka till tåget innan nästa iteration av sortering sker. Ett kösystem för att fläta samman de två vagnsekvenserna på stickspåret har potential att minska antalet rörelser för större tåg.
+
+Eftersom min implementation är så styv, så är det desvärre ingen liten modifiering. Exempel på när en sammanflätning skulle vara mycket effektivare, är när vagnarna ligger i total oordning. Se nedan.
+\begin{verbatim}
+3> shunt:find([a,b,c,d,e,f],[b,a,d,c,f,e]).
+[{one,5}, {two,1}, {one,-5}, {two,-1},
+{one,1}, {two,4}, {one,-1}, {two,-4},
+{one,3}, {two,1}, {one,-3}, {two,-1},
+{one,1}, {two,2}, {one,-1}, {two,-2},
+{one,1}, {two,1}, {one,-1}, {two,-1}]
+\end{verbatim}
+
+Medans det funkar bra om tåget har block av vagnar i ordning.
+\begin{verbatim}
+4> shunt:find([a,b,c,d,e,f],[d,e,f,a,b,c]).
+[{one,3},{two,3},{one,-3},{two,-3}]
+\end{verbatim}
+
+
+\section{Sammanfattning}
+
+Att implementera listfunktionerna var trvialt med tanke på att det finns biblioteksfunktioner som gör i stort sett exakt vad som efterfrågas, med undantag för några småanpassningar.
+
+Det största problemet för mig, var att jag fann det svårt att följa hela förloppet som angavs för algoritmen i uppg. 4. Det framgick tydligt att hur spåren användes, och det generella sättet. Men när det kom till själva implementationen så kunde jag inte komma på något enkelare sätt att göra det på, än vad min modifierade variant verkade. Så i stället så implementerade jag algoritmen på ett sätt som var intutivt för mig, och därmed genade över vissa delar av uppgifterna.
+
+\end{document}
