@@ -1,0 +1,141 @@
+%% En enkel mall för att skapa en labb-raport.
+\documentclass[a4paper, 11pt]{article}
+\usepackage[utf8]{inputenc} 
+\usepackage[swedish]{babel}
+\usepackage{graphicx}
+%%\usepackage{epstopdf}
+
+\title{Seminarie 4}
+\author{Steven Arnow}
+\date{\today} 
+
+\begin{document}
+
+\maketitle
+
+\section{Uppgiften}
+
+Uppgiften går ut på att modellera fem ätande filosofer som sitter vid ett runt bord. Det finns fem ätpinnar, en mellan varje par filosofer. Filosofer filosiferar mest, och äter bara ibland.  För att en filosof ska kunna äta måste dessutom det finnas ätpinnar på båda sidor om denna. En filosof plockar upp en ätpinne, och väntar sedan på den andra. Detta skall modelleras med processer för filosofer och ätpinnar.
+
+\section{Ansats}
+\subsection{Första körningen}
+
+Först gällde det att implementera en modul som modellerar en ätpinne. Denna ska det sedan startas 5 processer av, som är länkade till en kontrollprocess. Kontrollprocessen håller i sin tur koll på både ätpinnarnas processer oh filosofernas processer. Om någon av processerna dör abnormalt, så skall alla processer slås ihjäl, vilket sker genom att alla processer länkas till kontrollprocessen.
+
+Processen för ätpinnen har ett API i form av ett antal hjälpfunktioner som sköter kommunikationen med själva processen. Med detta API kan sedan filosoferna plocka upp eller lägga tillbaka ätpinnar. Genom denna process kan enbart en filosof hålla i ätpinnen åt gången. Ätpinnens status, om den är tagen eller ej, implementerades genom att låta medelandehantering implementeras av vilken funktion som lyssnar efter medelanden. Ex.
+\begin{verbatim}
+gone() -> receive
+        {return, Pid} -> Pid ! {return, ok};
+        ...
+        end.
+available() -> receive
+        {request, Pid} -> Pid ! {request, ok};
+        ...
+        end
+        available().
+\end{verbatim}
+
+Denna struktur medför att om flera filosofer vill ha pinnen, så blockerar deras förfrågan tills pinnen är ledig.
+
+Filosoverna är inte lika komplicerade. Filosoferna implementerades som ett enda flöde, där filosofen först klurar på något
+i en relativt slumplässig tid, och därefter bestämmer sig för att äta, pinnarna brevid filosofen plockas upp och behålls en
+kortare stund jämfört med filosiferandet, och läggs därefter tillbaka. Sedan rekurserar den tillbaka med en räknare
+minskad. Filosofen vill bara äta fem gånger. 
+
+En hjälpfunktion som konstruerades för testandet är \emph{sleep/2}. Med den kan vi fördröja exekveringen i en process genom
+att specifiera ett minimalt antal millisekunder att fördröja, samt en variation, ett slumptal som kommer vara mellan 0 och angiven
+maximal variation. Den är konstruerad enligt nedan
+\begin{verbatim}
+sleep(T, D) -> timer:sleep(T + random:uniform(D)).
+\end{verbatim}
+
+
+\subsection{Andra körningen}
+
+Nu lades en timeout in i väntandet. Om inte en ätpinne är tillgänglig bryts väntandet. Med hjälp \emph{random:seed/3} och
+ett extra argument till funktionen som startar filosofprocessen, kan varje filosof nu få ett eget beteende, och dessutom
+ger det möjligheten att ändra det. Utan att köra \emph{random:seed/3} blir det alltid samma beteende, då slumpgeneratorn
+i Erlang alltid initieras till samma värden.
+
+\emph{request/2} gavs också en kompanjon, \emph{request2/2}. Med denna funktion förfrågas en ätpinne utan att vara blockerande.
+Svaret är dessutom identifierbart, så att det i efterhand går att klura ut vilken ätpinne det var som togs emot.
+
+Att bara slänga på en timeout på existerande request gör att simuleringen beteer sig fel. När filosofen ger upp äter den ändå,
+och lägger sedan tillbaka båda pinnarna, fast filosofen i fråga aldrig fick tag på båda pinnarna. Det betyder att pinnen filosofen
+aldrig hade görs tillgänglig. Helt galet.
+
+För att korrigera detta behöver request returnera något om pinnen inte var tillgänglig. I fallet med \emph{request2/2} implementerades
+det genom att \emph{granted/3} bara returnerar om alla eller ingen pinne tagits inom utsatt tid. Fick filosofen tag på en pinne men inte
+den andra inom utsatt tid så lämnas den första tillbaka av granted. Det ger filosofen en enklare situation att hantera. Antingen så
+finns båda pinnarna, och då kan filosofen äta, eller så finns ingen pinne, och då är det bara att filosifera ett tag.
+
+\section{Utvärdering}
+\subsection{Första körningen}
+
+Under första körningen tog det stopp på en gång. Utan någon variation i filosiferandet kommer alla filosofer
+vilja äta exakt samtidigt. Så alla filosofer får tag i ätpinnen till vänster om sig, men aldrig den till höger om sig,
+så kommer ingen att kunna börja äta. Och eftersom alla sitter och väntar på den andra pinnen, så kommer dödläget aldrig att
+släppa.
+
+När den varierade sleep från körning två introducerades gick det rätt smärtfritt. Första deadlock nåddes när
+variationen för filosifierandet blev färre millisekunder än det finns filosofer. Därför kommer jag för denna
+metod använda 5 ms som maximal variation i filosiferingstiden. I tabell \ref{tab:results1} listas körningar för varje seed.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|r|r|r|r|}
+\hline
+Körtid & 1.76 s & 1.73 s & 1.77 s & 3.18 s \\
+\hline
+\end{tabular}
+\caption{Körtid för aggressiv simulering med risk för dead-lock}
+\label{tab:results1}
+\end{table}
+
+\subsection{Andra körningen}
+
+Här skulle det egentligen finnas en tabell som beskriver körtiden för en säker, väntande. Men
+innan implementationen var helt klar var svaret uppenbart. Den säkrare implementationen kommer
+nästan alltid att vara långsammare. Detta gäller eftersom filosoferna kommer ligga redo i startgroparna
+att plocka en pinne så snart den finns tillgänglig. Och eftersom en liten, men betydelsefull
+variation har identifierats som gör att filosoferna filosiferar lite olika länge, så kommer någon i stort
+sett alltid få tag på båda pinnarna innan någon annan.
+
+För att illustrera hur nära de uppmätta körtiderna är det ideala fallet, så gäller att
+filosoferna äter i mellan 100 och 150 ms. Eftersom det finns fem pinnar, och två behövs för varje filosof,
+kan som mest två filosofer äta samtidigt. Om filosoferna inte filosiferade skulle och bara åt, skulle
+$ \frac{5 filosofer \times 5 port. nudlar \times 100 ms}{2} = 1250 ms $ \\
+totalt i bästa fall, och \\
+$ \frac{5 filosofer \times 5 port. nudlar \times 150 ms}{2} = 1875 ms $ \\
+
+i värsta fall. Lägg sedan på filosiferandet, så går det att se att det är ganska självbalanserande. Undantaget
+är när man stöter på ett seed där filosoferna aktivt motverkar självbalanseringen och klumpar ihop sig varje gång
+de är hungriga. Ett sådant fall kan ses i sista körningen i \ref{tab:results1}.
+
+Men den säkra metoden kommer fortfarande vara långsammare, då när en kö upptäcks, så hoppar filosoferna ur kön
+och filosiferar åter igen. Samma motverkande situation kan då uppstå.
+
+\subsection{Med servitris}
+
+Med en servitris kan man göra en liten fuling mot filosoferna. Låt oss anta att filosoferna sitter och filosiferar, och att alla har en order på ingång.
+Servitrisen är medveten om att det bara finns två hela par ätpinnar, så därför väcker servitrisen upp filosoferna när det är dags att äta.
+För att inte det ska stå still roterar servitrisen kring filosoferna likt i ett mönster som illustreras i figur \ref{fig:waiter}.
+På så sätt kan tiden filosoferna spenderar åt att filosifera optimeras, så att ingen någonsin väntar på ätpinnar.
+
+Det torde därför gå snabbare än även den aggresiva metoden.
+
+\begin{figure}[!htb]
+\centering
+\includegraphics[scale=1.0]{waiter.eps}
+\label{fig:waiter}
+\caption{En servitris som roterar kring filosoferna}
+\end{figure}
+
+
+\section{Sammanfattning}
+
+Att implementera allt var ganska enkelt, det var väl beskrivet i uppgiften.
+
+Mindre problem kom ifrån att försöka trimma in slumpvärderna för att filosofernas ätvanor skulle självbalanseras. Men det var ju bara att pröva sig fram..
+
+\end{document}

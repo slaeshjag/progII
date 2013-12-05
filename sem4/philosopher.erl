@@ -1,10 +1,14 @@
 -module(philosopher).
--export([start/5]).
+-export([start/6]).
 
-start(Hungry, Left, Right, Name, Ctrl) ->
-	spawn_link(fun() -> thinking(Hungry, Left, Right, Name, Ctrl) end).
+start(Hungry, Left, Right, Name, Ctrl, Seed) ->
+	spawn_link(fun() -> run(Hungry, Left, Right, Name, Ctrl, Seed) end).
 
 sleep(T, D) -> timer:sleep(T + random:uniform(D)).
+
+run(Hungry, Left, Right, Name, Ctrl, {S1, S2, S3}) ->
+	random:seed(S1, S2, S3),
+	thinking(Hungry, Left, Right, Name, Ctrl).
 
 
 thinking(0, _, _, Name, Ctrl) -> 
@@ -12,11 +16,11 @@ thinking(0, _, _, Name, Ctrl) ->
 
 thinking(Hungry, Left, Right, Name, Ctrl) ->
 	%% Think for a while %%
-	sleep(200, 100),
+	sleep(100, 5),
 	%% Eat a little %%
-	chopstick:request(Left),
+	chopstick:request(Left, 100),
 	io:format("~s got a chopstick~n", [Name]),
-	chopstick:request(Right),
+	chopstick:request(Right, 100),
 	sleep(100, 50),
 	chopstick:return(Right),
 	chopstick:return(Left),
