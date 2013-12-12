@@ -1,0 +1,121 @@
+%% En enkel mall för att skapa en labb-raport.
+\documentclass[a4paper, 11pt]{article}
+\usepackage[utf8]{inputenc} 
+\usepackage[swedish]{babel}
+
+\title{Seminarium 5}
+\author{Steven Arnow}
+\date{\today} 
+
+\begin{document}
+
+\maketitle
+
+\section{Uppgiften}
+
+Uppgiften gick ut på att utifrån en i stort sett färdig kodbas för en webbserver, kompettera denna och göra lite benchmarks på den.
+Från den givna kodbasen skulle förståelse för sockets utvinnas.
+
+\section{Ansats}
+
+Den implementerade webbservern består av två huvudkomponenter. Dels socket-lyssnaren, som väntar på en inkommande anslutning, hämtar en förfrågning från klienten, skickar den vidare till HTTP-tolken, som genererar ett svar. Detta svar skickar sedan socket-hanteraren till klienten. Därefter bryts anslutningen och socket-hanteraren väntar på nästa anslutning.
+
+\subsection{Sockets}
+Sockets är hur Erlang-program kan kommunicera universiellt med andra datorer och program, som inte nödvändigtvis är skrivna i Erlang. För HTTP används specifikt tcp sockets, som har återsändning av förlorade paket inbyggt på protokollnivå.
+
+För att skapa en serversocket används \emph{gen\_tcp:listen/2}, som används för att skapa en socket som lyssnar efter inkommande anslutningar. Denna socket kan dock inte användas direkt för
+kommunikation med klienter. Det används \emph{gen\_tcp:accept/1} till, som använder en lyssnings-socket från \emph{listen} för att acceptera en inkommande anslutning. Returvärdet från \emph{accept} är en ny socket som kan användas för att komminucera med en klient.
+Den gamla socket:en som användes för att lyssna på anslutningen stängs inte, utan kan användas för att acceptera fler anslutningar.
+
+Den socket vi nu har fått från \emph{accept} kan användas för att prata med klienten. Eftersom det inte skulle implementeras någon multitrådad server så används den direkt.
+
+Det används \emph{gen\_tcp:recv/2} för. \emph{recv} tar emot ett paket data från angiven socket.
+Detta kan vara ett problem. I implementationen som gavs körs bara recv en gång per klient.
+Skulle en HTTP-förfrågan göras med många headers, så skulle den inte få plats i ett paket.
+Och då skulle saker gå sönder.
+
+För att kunna skicka tillbaka ett svar används \emph{gen\_tcp:send/2}. \emph{send} skickar en sträng till en socket.
+
+När kommunikationen är klar så stängs klient-socket:en med \emph{gen\_tcp:close/1}. När en TCP-socket stängs
+så informeras klienten på andra sidan, som därmed snabbt kan upptäcka att anslutningen är bruten, och att
+det är lönlöst att hämta/skicka mer data. Att stänga en socket är viktigt. De flesta system har en begränsning
+på hur många filer/sockets (i *nix-system är dessa i stort sett samma sak) som går att ha öppna. Sitter servern
+dessutom bakom en router/brandvägg med NAT, så finns det en begränsning även där. PAT (Port Address Translation) kan teoretiskt sett
+inte hålla mer än $2^{16} - 1$ anslutningar uppe, då varje anslutning ges en port. Det finns bara $2^{16} - 1$ portar
+i TCP och UDP.
+
+
+\subsection{HTTP}
+
+Nästa stora del i servern är HTTP-tolken. Den har som uppgift, att utifrån klientens förfrågan, klura ut vad klienten vill oss, och generera ett svar som socket-hanteraren sedan skickar till klienten.
+
+Den förfrågningstolken vi implementerade, är väldigt enkel. Den plockar in hela förfrågan, och behandlar en bit i taget, och stegar igenom från början till slut.
+HTTP-headers hanteras radvis. Varje rad, inkl. förfrågningskommandot, har en rad där första ordet är ett kommando eller en header. Alla ord därefter är argument till det.
+En DOS-radbrytning (modernaste systemet som hade en ursäkt att använda sekvensen,) "CRLF", carriage-return line-feed, visar att kommandot/headern är slut.
+En helt tom rad med CRLF efterföljande indikerar att BODY, sidans egentliga innehåll, följer. Den givna tolken antar att allt efter headers är body. Detta stämmer
+enbart när inte headern "Content-Length" är given.
+
+Först gör den en pattern-matching för att avgöra vad för typ av förfrågning det är. Den givna HTTP-tolken kan bara acceptera "GET"-förfrågningar. Vilket är
+typen som används för att hämta en webbsida utan att skicka någon extrainformation till den.
+
+Därefter följer URI för sidan som efterfrågades. Den kan plockas ut direkt med rekursiv pattern-matching. URI är strängen som följer till nästa mellanslag ' '.
+
+Därefter kommer versionsinfo. Givna tolken har två definerade fall. "HTTP/1.0" och "HTTP/1.1". Båda dessa hanteras lika, men är de två versionerna som är vanligast förekommande.
+Tolken hanterar dock varken HTTP 2.0 eller Gopher.
+
+
+Därefter hämtas alla headers. Detta görs rekursivt. När en tom header-rad upptäcks är det slut på headers. Ingen speciell hantering görs
+i den givna tolken. Varje header läggs som en sträng i en lista, med dess terminerande radbrytning bortplockad.
+
+När den terminerande tomraden upptäcks läggs allt som följer i Body och tolken klurar fram ett svar, som tolken returnerar med för socket-hanteraren att
+skicka tillbaka.
+
+I den givna implementationen är den alltid ett OK-svar, att allt gick vägen, och någon information.
+
+
+\section{Utvärdering}
+
+Vid testning kördes servern med en artificiell fördröjning på 40 ms, samt utan denna fördröjning.
+Dessutom jämfördes körtiden med samma benchmark-program mot en nginx-webbserver som levererade en statisk sida. Båda kördes på
+samma manskin, dock inte samma som benchmark-programmet körde på.
+
+Som kan ses i tabell \ref{tab:results} så är den givna servern jämförbar i responstid med nginx. Nu gör dock inte
+den givna servern särskillt mycket, det är ganska säkert att anta att större delen av den uppmätta tiden för de två är
+nätverksfördröjning (tested utfördes över ett redigt kasst WLAN,) samt svarsfördröjningar i systemet servern kördes på.
+
+Vad som dock kan sägas, är att nginx-servern antagligen skulle klara sig mycket bättre när flera förfrågningar sker samtidigt.
+Den givna servern hanterar bara en förfrågning åt gången. Nginx, en riktig webbserver byggd för prestanda, har ett antal "workers"
+som plockar upp anslutningar när de blir tillgängliga. Det betyder att flera klienter kan behandlas samtidigt. Så om två klienter
+skulle köra benchmark mot servern samtidigt, så skulle den givna servern antagligen ge dubbelt så lång förfrågningstid för de två
+benchmark-programmen, men nginx skulle antagligen prestera liknande jämfört med en förfrågning åt gången.
+
+Att ha en bestämd mängd arbetare som hanterar anslutningar, i stället för att starta en ny process för varje anslutning,
+är att många processer ger stort prestandapåslag. För att det inte ska eskalera ur kontroll, så måste man begränsa
+mängden processer.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|r|r|r|}
+\hline
+& Erlang & Erlang delay & nginx \\
+\hline
+100 req & 655 ms & 4693 ms & 660 ms \\
+\hline
+ms/req & 6.55 ms & 46.93 ms & 6.6 ms \\
+\hline
+\end{tabular}
+\caption{Tid per förfrågning}
+\label{tab:results}
+\end{table}
+
+I det fallet att en fördröjning på 40 ms skulle simulera scripts för att generera sidan, så är det uppenbart
+att det står för en betydande del av behandlingstiden, som kan ses i tabell \ref{tab:results}.
+
+
+\section{Sammanfattning}
+
+Uppgiften i sig gav ingen huvudvärk. Det var bara att läsa koden som gavs, så kunde den lätt kompletteras med
+de saknade bitarna (främst, hur funktionerna anropar varandra, och var.) Det största problemet var att ens förstå vad
+det fanns att skriva om.
+
+\end{document}
