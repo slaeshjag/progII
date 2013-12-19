@@ -1,33 +1,37 @@
 -module(icy).
--export([parse_request/1]).
+-export([parse_request/1, segments/1, encode_meta/1, encode_response/1]).
 -define(Chunk, 8192).
 
 segments(<<Chunk:?Chunk/binary, Rest/binary>>) ->
-	[{seg, Chunk} | segments(Rest)].
-segments() ->
+	[{seg, Chunk} | segments(Rest)];
+segments(<<_/binary>>) ->
 	[].
 
 
 
-encode_headers([]) -> [];
+encode_headers([]) -> <<>>;
 encode_headers([{Key, Value}|Rest]) ->
 	case Key of
-		title -> Head = "StreamTitle='" ++ Value ++ "';";
-		_ -> Head = []
+		title -> Val = list_to_binary(Value),
+		Head = <<"StreamTitle='", Val/binary, "';">>;
+		_ -> Head = <<>>
 	end,
-	Head ++ encode_headers(Rest).
+	RestH = encode_headers(Rest),
+	<<Head/binary, RestH/binary>>.
 
 
 padding(Data, 0) -> {size(Data) div 16, Data};
-padding(Data, Pad) -> padding(Data ++ [0], Pad - 1).
+padding(Data, Pad) -> padding(<<Data/binary, 0>>, Pad - 1).
 
 padding(Data) ->
-	padding(Data, size(Data) rem 16).
+	padding(Data, 16 - (size(Data) rem 16)).
 
 
 encode_meta(Headers) ->
 	Meta = encode_headers(Headers),
+	io:format("Encoding meta: ~w~n", [size(Meta)]),
 	{K, Padded} = padding(Meta),
+	io:format("Padded: ~w ~w~n", [size(Padded), K]),
 	<<K/integer, Padded/binary>>.
 
 encode_header(_) -> "\r\n".
@@ -106,7 +110,7 @@ parse_request(Segment) ->
 		{ok, Method, Resource, Version, R1} ->
 			case headers(R1, []) of
 				{ok, Headers, Body} ->
-					{ok, Method, Resource, Version, Headers, Body};
+					{ok, Method, {Resource, Version, Headers, Body}};
 				moar ->
 					{moar, fun(More) -> parse_request(<<Segment/binary, More/binary>>) end}
 			end;

@@ -1,12 +1,21 @@
 %% More like surrdurr
 
 -module(server).
--export([init/1, start/1, stop/0]).
+-export([init/1]).
 
-reply({{get, URI, _}, _, _}) ->
-	case file:read_file("/tmp" ++ URI) of
-		{ok, Reply} -> http:ok(binary_to_list(Reply));
-		{error, Error} -> http:err("404 File not found")
+-define(Opt, [binary, {packet, 0}, {reuseaddr, true}, {active, true}, {nodelay, true}]).
+-define(Port, 8080).
+-define(Header, [{'icy-name', "ID1019"}, {'icy-genre', "Groove"}, {'icy-notice1', "Our own jukebox"}]).
+-define(Timeout, 1000000).
+
+
+parser(<<13, 10, 13, 10>>, start) -> ok;
+parser(<<Bin/binary>>, start) when size(Bin) < 4 -> moar;
+parser(<<_, Rest/binary>>, start) -> parser(Rest, start).
+parser(Segment) ->
+	case parser(Segment, start) of
+		ok -> {ok, Segment, []};
+		moar -> {moar, fun(More) -> parser(<<Segment/binary, More/binary>>) end}
 	end.
 
 
@@ -15,7 +24,7 @@ reader(Parser, Socket) ->
 		{tcp, Socket, More} ->
 			case Parser(More) of
 				{ok, Parsed, Rest} ->
-					Parsed;
+					{ok, Parsed, Rest};
 				{moar, Cont} ->
 					reader(fun(More) -> Cont(More) end, Socket);
 				{error, Error} ->
@@ -25,46 +34,44 @@ reader(Parser, Socket) ->
 			{error, "Socket closed"};
 		stop ->
 			ok
+	after ?Timeout ->
+		gen_tcp:close(Socket),
+		{error, "Connection timeout"}
 	end.
 
 
 reader(Socket) ->
-	reader(fun() -> parser(<<>>) end, Socket).
+	reader(fun(More) -> parser(More) end, Socket).
 
-request(Client) ->
-	Recv = gen_tcp:recv(Client, 0),
-	case Recv of
-		{ok, String} ->
-			gen_tcp:send(Client, reply(http:parse_request(String)));
+loop(_, [], _) ->
+	ok;
+loop(Header, [{seg, Segment}|Rest], Socket) ->
+	%io:format("Sending segment~n", []),
+	gen_tcp:send(Socket, Segment),
+	%io:format("Sending header~n", []),
+	gen_tcp:send(Socket, Header),
+	loop(Header, Rest, Socket).
+
+
+server(Header, Segments, Listen) ->
+	{ok, Socket} = gen_tcp:accept(Listen),
+	io:format("Server: connect~n", []),
+	case reader(Socket) of
+		{ok, Request, _} ->
+			io:format("server: received request ~p~n", [Request]),
+			gen_tcp:send(Socket, icy:encode_response(Request)),
+			loop(Header, Segments, Socket),
+			gen_tcp:close(Socket);
 		{error, Error} ->
-			io:format("rudy: error: ~w~n", [Error])
-	end,
-	gen_tcp:close(Client).
-
-
-handler(Listen) ->
-	case gen_tcp:accept(Listen) of
-		{ok, Client} ->
-			request(Client),
-			handler(Listen);
-		{error, Error} ->
-			error
+			io:format("server: ~s~n", [Error])
 	end.
 
 
-init(Port) ->
-	Opt = [list, {active, true}, {reuseaddr, true}],
-	case gen_tcp:listen(Port, Opt) of
-		{ok, Listen} ->
-			handler(Listen),
-			gen_tcp:close(Listen),
-			ok;
-		{error, Error} ->
-			error
-	end.
+init(File) ->
+	{mp3, Title, Data} = mp3:read_file(File),
+	Header = icy:encode_meta([{title, Title}]),
+	Segments = icy:segments(Data),
+	{ok, Listen} = gen_tcp:listen(?Port, ?Opt),
+	server(Header, Segments, Listen).
 
-start(Port) ->
-	register(rudy, spawn(fun() -> init(Port) end)).
 
-stop() ->
-	exit(whereis(rudy), "time to die").
