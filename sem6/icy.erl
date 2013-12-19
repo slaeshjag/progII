@@ -29,9 +29,7 @@ padding(Data) ->
 
 encode_meta(Headers) ->
 	Meta = encode_headers(Headers),
-	io:format("Encoding meta: ~w~n", [size(Meta)]),
 	{K, Padded} = padding(Meta),
-	io:format("Padded: ~w ~w~n", [size(Padded), K]),
 	<<K/integer, Padded/binary>>.
 
 encode_header(_) -> "\r\n".

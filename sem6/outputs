@@ -1,0 +1,27 @@
+3> server:init().
+Server: connect
+server: received request <<"GET /jockel.mp3 HTTP/1.0\r\nHost: localhost:8080\r\nUser-Agent: MPlayer svn r34540 (Debian), built with gcc-4.7\r\nIcy-MetaData: 1\r\nConnection: close\r\n\r\n">>
+server: disconnect
+
+steven@Butters:/tmp$ mplayer http://localhost:8080/jockel.mp3
+...
+Playing http://localhost:8080/jockel.mp3.
+...
+ICY Info: StreamTitle='Jockel der Gartenteichspr...';
+
+
+
+
+******
+
+Server: connect
+server: received request <<"GET /fatamorgana.mp3 HTTP/1.0\r\nHost: localhost:8080\r\nUser-Agent: MPlayer svn r34540 (Debian), built with gcc-4.7\r\nIcy-MetaData: 1\r\nConnection: close\r\n\r\n">>
+server: disconnect
+
+steven@Butters:/tmp$ mplayer http://localhost:8080/fatamorgana.mp3
+...
+Playing http://localhost:8080/fatamorgana.mp3.
+...
+ICY Info: StreamTitle='Fata Morgana';
+
+

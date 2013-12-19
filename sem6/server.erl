@@ -1,7 +1,7 @@
 %% More like surrdurr
 
 -module(server).
--export([init/1]).
+-export([init/0]).
 
 -define(Opt, [binary, {packet, 0}, {reuseaddr, true}, {active, true}, {nodelay, true}]).
 -define(Port, 8080).
@@ -53,25 +53,34 @@ loop(Header, [{seg, Segment}|Rest], Socket) ->
 	loop(Header, Rest, Socket).
 
 
-server(Header, Segments, Listen) ->
+server(Listen) ->
 	{ok, Socket} = gen_tcp:accept(Listen),
 	io:format("Server: connect~n", []),
 	case reader(Socket) of
 		{ok, Request, _} ->
 			io:format("server: received request ~p~n", [Request]),
+
+			%% Get resource, load it
+			{ok, _, {Resource, _, _, _}} = icy:parse_request(Request),
+			{mp3, Title, Data} = mp3:read_file("." ++ Resource),
+			Header = icy:encode_meta([{title, Title}]),
+			Segments = icy:segments(Data),
+
 			gen_tcp:send(Socket, icy:encode_response(Request)),
 			loop(Header, Segments, Socket),
-			gen_tcp:close(Socket);
+			gen_tcp:close(Socket),
+			io:format("server: disconnect~n"),
+			server(Listen);
 		{error, Error} ->
 			io:format("server: ~s~n", [Error])
 	end.
 
 
-init(File) ->
-	{mp3, Title, Data} = mp3:read_file(File),
-	Header = icy:encode_meta([{title, Title}]),
-	Segments = icy:segments(Data),
+init() ->
+%	{mp3, Title, Data} = mp3:read_file(File),
+%	Header = icy:encode_meta([{title, Title}]),
+%	Segments = icy:segments(Data),
 	{ok, Listen} = gen_tcp:listen(?Port, ?Opt),
-	server(Header, Segments, Listen).
+	server(Listen).
 
 
