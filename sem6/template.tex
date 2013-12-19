@@ -1,0 +1,136 @@
+%% En enkel mall för att skapa en labb-raport.
+\documentclass[a4paper, 11pt]{article}
+\usepackage[utf8]{inputenc} 
+\usepackage[swedish]{babel}
+\usepackage{url}
+
+\title{Seminarie 6}
+\author{Steven Arnow}
+\date{\today} 
+
+\begin{document}
+
+\maketitle
+
+%\section*{Tips angående rapportskrivning}
+%\textbf{TA BORT DETTA STYCKE INNAN DU LÄMNAR IN RAPPORTEN.}
+
+%\textit{Målgrupp för rapporten är personer som har precis samma kunskaper som författaren, bortsett från att de inte vet något alls om det specifika program rapporten beskriver.}
+
+%Tänk på följande:
+
+%\begin{itemize}
+%  \item Är stavning och grammatik korrekt? Undviks talspråk? Är rapporten kort och koncis eller onödigt lång och ordrik?
+%  \item Är lösningen tydligt förklarad? Kommer läsaren att förstå programmet? Tänk på vad du själv skulle vilja veta om du läste om programmet.
+%  \item Bevisar rapporten att programmet i fråga fungerar? Detta kan göras genom att presentera prestandamätningar eller andra testresultat.
+%  \item Finns det en analys av testresultaten? Visar de programmets viktiga egenskaper? Borde det göras ytterligare utvärderingar?
+%  \item Framgår det vilka problem som uppstod under utvecklingen och hur de lösts?
+%  \item Finns det en utvärdering av arbetet? Framgår det vad författaren har lärt sig av uppgiften?
+%  \item Är texten illustrerad med kodsnuttar och/eller bilder och/eller tabeller? Undvik långa kodlistningar, ta bara med just den kod som är relevant och som förklaras i den löpande texten.
+%  \item Har rapporten en bra struktur med rubriker, underrubriker och stycken?
+%\end{itemize}
+
+\section{Uppgiften}
+
+Uppgiften gick ut på att, given en nästan komplett kodbas för en Shoutcast-kompatibel streaming-server, implementera färdigt och utöka denna. Vilket innefattade att implementera enklare funktioner för att t.ex. läsa ID3-taggar från MP3-filer, läsa en rad i taget, från en tcp/ip-ström som kan vara uppdelad i flera paket, etc..
+
+\section{Ansats}
+
+Resultatet består av tre olika delar, \emph{server}, \emph{icy} och \emph{mp3}. Dessa sitter ihop så att \emph{server} beror på \emph{icy}, och \emph{server} beror på \emph{mp3}.
+
+Ett stort problem i den här uppgiften var att den givna koden inte satt ihop särskillt väl med instruktionerna. Ett flertal funktioner som enbart nämndes i koden, men inte i beskrivningen, behövde jag implementera själv.
+
+Ett exempel på en sådan funktion är \emph{server:parser}, som enbart nämndes i koden. Den behövde inte göra något avancerat, bara att kunna bryta ut vad som är en förfrågning, vart den slutar och om det fattas bitar av den. Denna implementerades genom att rekursivt söka efter $<cr><lf><cr><lf>$. Om detta (som indikerar slut på HTTP-headers) inte finns någonstans, så måste
+förfrågan sakna bitar, och då returnerar \emph{server:parser} atomen \emph{moar}, som får servern att hämta ett paket till. Annars så returneras förfrågan fram till header-slut.
+Eftersom det bara är GET-requests, så kan vi säkert anta att ingen vital information skickas till servern i body.
+
+\subsection{Server}
+
+Servern hanterar all nätverkskommunikation med klienten. Den plockar in en förfrågan, och skickar den vidare till \emph{icy}, som talar om för servern vilken mediaresurs som behövs laddas in.
+
+Servern håller alltså koll på media-resursen som laddats in av \emph{icy}, och ansvarar också för att strömma ut den. Tillsammans med ljuddata så strömmas också information ut mellan varje block, om vilken låt det är som spelas.
+
+\subsection{Icy}
+
+Icy håller koll på allt specifikt för strömmningsprotokollet. Hur en förfrågning skall tolkas, vad som skall svaras på den, och hur mediafilen som skall strömmas skall brytas upp och få meta-data invävt mellan blocken av ljuddata. Dessutom kodar också \emph{Icy} om meta-datan för att lämpas för strömmning.
+
+\subsection{Mp3}
+
+Mp3 innehåller enbart ett interface för att extraktera ID3-data från en MP3-fil. Denna informationen ligger längst bak i filen och har en fast struktur oberoende av innehåll, så funktionerna i fråga är triviala sådana som i stort sett enbart är pattern matching. ID3-data är en påklistrad struktur som innehåller information som artist, låtnamn, album etc..
+
+\subsection{Egen modifikation}
+
+Enligt uppgiften så skulle den givna implementationen modifieras för att göra något mer. Bland de föreslagna alternativen valde jag att implementera valbar mediaström, där URI avgör vilken mediaström klienten får.
+
+Detta implementerades genom att, i förfrågningshanteraren från servern, dels köra ett extra, eget anrop till \emph{icy:parse\_request}, för att plocka ut den efterfrågade strömmen.
+
+I stället för att få en laddad mediaström skickad till förfrågningshanteraren, så laddas mediaströmmen in när klienten frågar efter den. Därmed laddas mediaströmmen in när förfrågan görs från en ansluten klient, då den först är känd då.
+
+En annan mindre modifikation som gjordes, var att se till att \emph{server:server} loopar efter att en anslutning stängts, så att inte servern måste startas om
+efter att en klient kopplat från.
+
+För att utöka användbarheten så bör dels någon form av realtidsstreamning implementeras, att alla klienter får samma ljudström vid en given tidpunkt, efter ett schema.
+Och då bör rimligtvis strömmen komma från samma inladdade källa, det är väldigt ineffektivt att buffra en realtidsströmning för varje ansluten klient.
+
+Och dessutom bör en 'riktig' server kunna strömma till flera klienter samtidigt. 
+
+Den implementationen jag gjorde för att välja mediaström kan förfinas lite. Just nu slänger jag bara på '.' på URI och kör direkt mot filsystemet. Vilket betyder att en elaksinnad person kan läsa i stort sett vilken fil som helst på serverns disk, som användaren serverprogrammet kör under har tillgång till. Det är ofta dåligt,
+så detektion som kan 'låsa in' servern i en bestämd mapp är en ganska angelägen förbättring.
+
+
+\section{Utvärdering}
+
+
+Nedan visas de viktiga utdragen ur mplayer:s utskrift när mplayer anslöt mot servern.
+\begin{verbatim}
+steven@Butters:/tmp$ mplayer http://localhost:8080/jockel.mp3
+...
+Playing http://localhost:8080/jockel.mp3.
+...
+ICY Info: StreamTitle='Jockel der Gartenteichspr...';
+\end{verbatim}
+
+Under denna strömmingssession så skrev servern ut:
+\begin{verbatim}
+3> server:init().
+Server: connect
+server: received request <<"GET /jockel.mp3 HTTP/1.0\r\n
+        Host: localhost:8080\r\n
+        User-Agent: MPlayer svn r34540 (Debian), built with gcc-4.7\r\n
+        Icy-MetaData: 1\r\n
+        Connection: close\r\n\r\n">>
+server: disconnect
+\end{verbatim}
+
+Liknande output ges när en annan mediaström efterfrågas, men då med titel och resursnamn därefter. 
+
+Ett problem på vägen var att första testet att strömma ljud inte lät rätt. Stora block ljud hoppades över med typiska digitalkodekartifakter (hör: \url{http://t.rdw.se/not_quite_right.ogg} .)
+
+Det kunde till slut spåras ner till en felaktigt implementerad utfyllningsfunktion för stömmens metadata som skickas ut mellan varje ljudblock. I stället för att beräknas med\\
+$16 - (Size \bmod{16})$\\
+användes \\
+$Size \bmod{16}$\\
+Vilket gav upphov till att hela strömmen tappade synk, och block med ljuddata hoppades över för att den lästes som "korrupt", för att inte tala om
+hur sned den av mediaspelaren tolkade metadatan var..
+
+När det väl fungerade så fungerade det rätt bra. Den orkar putta på ljud utan att det hackar, och mplayer klagade inte över strömmen. 
+
+Den här uppgiften gav en inblick i hur ett på internet vanligt protokoll fungerar, och hur en spridd lösning inte hindrar den från att vara
+fulhakk ditsatta med Karlsons klister.
+
+
+
+\section{Sammanfattning}
+
+Det var inte mycket som fungerade på första försöket den här gången.
+Otydliga instruktioner gjorde att mycket kod som »skulle fyllas i själv« upptäcktes först när den givna koden inte körde,
+då en del inte nämndes i texten. Med en sådan kodvägg så kommer man knappast ihåg alla givna funktioner. Fixades genom att fylla i där
+det sket sig...
+
+Under de åtta timmarna jag spenderade åt att klistra ihop allt kunde jag inte sluta tänka på hur mycket lättare och fortare det hade gått
+att implementera allt i C i stället.
+
+Ett mindre problem som uppstod var att hitta mp3-filer. Jag konverterade hela min musiksamling till OGG/Vorbis för typ fem år sedan, så det blev att 
+rota efter bortglömda mappar..
+
+\end{document}
